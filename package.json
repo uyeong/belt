@@ -1,0 +1,33 @@
+{
+  "name": "@uyeong/belt",
+  "version": "0.0.1",
+  "main": "dist/belt.cjs.js",
+  "module": "dist/belt.esm.js",
+  "browser": "dist/belt.umd.js",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^24.0.22",
+    "jest": "^24.9.0",
+    "prettier": "^1.19.1",
+    "rollup": "^1.26.5",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-typescript2": "^0.25.2",
+    "ts-jest": "^24.1.0",
+    "tslint": "^5.20.1",
+    "tslint-config-airbnb": "^5.11.2",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^3.7.2"
+  },
+  "scripts": {
+    "lint:pt": "prettier --print-width 140 --single-quote --trailing-comma es5 --write 'src/**/*.ts'",
+    "lint:ts": "tslint -p tsconfig.json 'src/**/*.ts'",
+    "lint": "yarn lint:pt && yarn lint:ts --fix",
+    "test": "jest",
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  },
+  "files": [
+    "dist"
+  ]
+}
