@@ -27,6 +27,9 @@ export default [
 	// `file` and `format` for each target)
 	{
 		input: 'src/main.ts',
+		external: [
+			'eventemitter3'
+		],
 		plugins: [
 			typescript()
 		],
