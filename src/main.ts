@@ -145,3 +145,4 @@ class Belt {
 }
 
 export default Belt;
+export { BeltOption, BeltListener, BeltEasingFn };
