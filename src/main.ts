@@ -35,12 +35,12 @@ class Belt {
 
   constructor(option: BeltOption = {}) {
     this.emitter = new EventEmitter3();
-    this.delay = option.delay || 0;
-    this.duration = option.duration || 0;
-    this.loop = option.loop || false;
-    this.reverse = option.reverse || false;
-    this.round = option.round || false;
-    this.easing = option.easing || ((n: number) => n);
+    this.delay = option.delay ?? 0;
+    this.duration = option.duration ?? 0;
+    this.loop = option.loop ?? false;
+    this.reverse = option.reverse ?? false;
+    this.round = option.round ?? false;
+    this.easing = option.easing ?? ((n: number) => n);
   }
 
   public option(): BeltOption;
