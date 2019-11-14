@@ -29,6 +29,7 @@ class Belt {
   private round: boolean;
   private easing: BeltEasingFn;
   private emitter: EventEmitter3;
+  private timestamp: number = 0;
   private startTime: number = 0;
   private pastTime: number = 0;
   private rafId: number = 0;
@@ -79,9 +80,12 @@ class Belt {
           // @ts-ignore
           this[prop] = nextOption[prop];
           if (prop === 'reverse') {
-            const timestamp = this.startTime + this.pastTime;
-            const reversePastTime = this.duration * (1 - this.pastTime / this.duration);
-            this.startTime = timestamp - reversePastTime;
+            this.pastTime = this.duration * (1 - this.pastTime / this.duration);
+            this.startTime = this.timestamp - this.pastTime;
+          }
+          if (prop === 'duration') {
+            this.pastTime = this.duration * (this.pastTime / currOption.duration);
+            this.startTime = this.timestamp - this.pastTime;
           }
         }
       }
@@ -95,6 +99,7 @@ class Belt {
       if (!this.startTime) {
         this.startTime = timestamp - this.pastTime;
       }
+      this.timestamp = timestamp;
       this.pastTime = timestamp - this.startTime;
       const progress = this.pastTime / this.duration;
       if (this.pastTime >= this.duration) {
@@ -106,8 +111,9 @@ class Belt {
           this.rafId = 0;
           return;
         }
+      } else {
+        this.emitter.emit('update', blender(this.easing, this.reverse)(progress));
       }
-      this.emitter.emit('update', blender(this.easing, this.reverse)(progress));
       this.rafId = root.requestAnimationFrame(stepping);
     };
     root.requestAnimationFrame(stepping);
