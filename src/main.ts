@@ -22,13 +22,14 @@ function blender(easing: BeltEasingFn, reverse: boolean) {
 }
 
 class Belt {
-  private emitter: EventEmitter3;
   private delay: number;
   private duration: number;
   private loop: boolean;
   private reverse: boolean;
   private round: boolean;
   private easing: BeltEasingFn;
+  private emitter: EventEmitter3;
+  private startTime: number = 0;
   private pastTime: number = 0;
   private rafId: number = 0;
 
@@ -59,34 +60,46 @@ class Belt {
     if (typeof key === 'string' && value === undefined) {
       return this[key];
     }
+    const currOption = this.option() as { [key: string]: any };
+    const nextOption = { ...currOption };
     if (typeof key === 'string' && value !== undefined) {
-      // @ts-ignore
-      this[key] = value;
+      nextOption[key] = value;
     }
     if (typeof key === 'object' && key.constructor === Object) {
-      const option = key;
-      for (const name in option) {
-        if (option.hasOwnProperty(name)) {
+      for (const name in key /* key is BeltOption */) {
+        if (key.hasOwnProperty(name)) {
+          nextOption[name] = key[name as keyof BeltOption];
+        }
+      }
+    }
+    for (const prop in currOption) {
+      if (currOption.hasOwnProperty(prop)) {
+        if (currOption[prop] !== nextOption[prop]) {
           // @ts-ignore
-          this[name] = option[name];
+          this[prop] = nextOption[prop];
+          if (prop === 'reverse') {
+            const timestamp = this.startTime + this.pastTime;
+            const reversePastTime = this.duration * (1 - this.pastTime / this.duration);
+            this.startTime = timestamp - reversePastTime;
+          }
         }
       }
     }
   }
 
   public run() {
-    const duration = this.duration;
-    let startTime = 0;
+    this.pastTime = 0;
+    this.startTime = 0;
     const stepping = (timestamp: number) => {
-      if (!startTime) {
-        startTime = timestamp - this.pastTime;
+      if (!this.startTime) {
+        this.startTime = timestamp - this.pastTime;
       }
-      const pastTime = timestamp - startTime;
-      const progress = pastTime / duration;
-      if (pastTime >= duration) {
-        this.emitter.emit('update', blender(this.easing, this.reverse)(progress));
+      this.pastTime = timestamp - this.startTime;
+      const progress = this.pastTime / this.duration;
+      if (this.pastTime >= this.duration) {
+        this.emitter.emit('update', blender(this.easing, this.reverse)(1));
         if (this.loop) {
-          startTime = timestamp;
+          this.startTime = timestamp;
         } else {
           this.pastTime = 0;
           this.rafId = 0;
@@ -94,7 +107,6 @@ class Belt {
         }
       }
       this.emitter.emit('update', blender(this.easing, this.reverse)(progress));
-      this.pastTime = pastTime;
       this.rafId = root.requestAnimationFrame(stepping);
     };
     root.requestAnimationFrame(stepping);
