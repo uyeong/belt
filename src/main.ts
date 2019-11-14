@@ -55,7 +55,7 @@ class Belt {
         loop: this.loop,
         reverse: this.reverse,
         round: this.round,
-        easing: this.easing
+        easing: this.easing,
       };
     }
     if (typeof key === 'string' && value === undefined) {
