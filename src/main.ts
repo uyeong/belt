@@ -116,10 +116,9 @@ class Belt {
 
   public on(eventName: string | BeltListener, listener: (...args: any[]) => void, context?: any) {
     if (typeof eventName === 'object' && eventName.constructor === Object) {
-      const listenerMap = eventName;
-      for (const key in listenerMap) {
-        if (listenerMap.hasOwnProperty(key)) {
-          this.emitter.on(key, listenerMap[key]);
+      for (const key in eventName /* is BeltListener */) {
+        if (eventName.hasOwnProperty(key)) {
+          this.emitter.on(key, eventName[key]);
         }
       }
     }
@@ -131,10 +130,9 @@ class Belt {
 
   public off(eventName: string | BeltListener, listener: (...args: any[]) => void, context?: any) {
     if (typeof eventName === 'object' && eventName.constructor === Object) {
-      const listenerMap = eventName;
-      for (const key in listenerMap) {
-        if (listenerMap.hasOwnProperty(key)) {
-          this.emitter.off(key, listenerMap[key]);
+      for (const key in eventName /* is BeltListener */) {
+        if (eventName.hasOwnProperty(key)) {
+          this.emitter.off(key, eventName[key]);
         }
       }
     }
