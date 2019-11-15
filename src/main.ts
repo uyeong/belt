@@ -1,23 +1,13 @@
 import EventEmitter from 'eventemitter3';
+import Optionor, { Option, EasingFn } from './optionor';
 
-interface BeltOption {
-  delay?: number;
-  duration?: number;
-  loop?: boolean;
-  reverse?: boolean;
-  round?: boolean;
-  easing?: BeltEasingFn;
-}
-
-interface BeltListener {
+interface ListenerMap {
   [eventName: string]: (...args: any[]) => void;
 }
 
-type BeltEasingFn = (n: number) => number;
-
 const root = (typeof window === 'undefined' ? global : window) as Window;
 
-function blender(easing: BeltEasingFn, reverse: boolean) {
+function blender(easing: EasingFn, reverse: boolean) {
   return (progress: number, turn: boolean) => {
     // prettier-ignore
     return turn ?
@@ -27,13 +17,8 @@ function blender(easing: BeltEasingFn, reverse: boolean) {
 }
 
 class Belt {
-  private emitter: EventEmitter = new EventEmitter();
-  private delay: number;
-  private duration: number;
-  private loop: boolean;
-  private reverse: boolean;
-  private round: boolean;
-  private easing: BeltEasingFn;
+  private emitter = new EventEmitter();
+  private optionor: Optionor;
   private blend: (n: number, t: boolean) => number;
   private turn: boolean = false;
   private timestamp: number = 0;
@@ -41,65 +26,30 @@ class Belt {
   private pastTime: number = 0;
   private rafId: number = 0;
 
-  constructor(option: BeltOption = {}) {
-    this.delay = option.delay ?? 0;
-    this.duration = option.duration ?? 0;
-    this.loop = option.loop ?? false;
-    this.reverse = option.reverse ?? false;
-    this.round = option.round ?? false;
-    this.easing = option.easing ?? ((n: number) => n);
-    this.blend = blender(this.easing, this.reverse);
+  constructor(option: Partial<Option> = {}) {
+    this.optionor = new Optionor(option);
+    this.optionor.listen(this.onUpdateOption, this);
+    const easing = this.optionor.get('easing');
+    const reverse = this.optionor.get('reverse');
+    this.blend = blender(easing, reverse);
   }
 
-  public option(): BeltOption;
-  public option(key: Partial<BeltOption>): void;
-  public option<T extends keyof BeltOption>(key: T): BeltOption[T];
-  public option<T extends keyof BeltOption>(key: T, value: BeltOption[T]): void;
-  public option(key?: keyof BeltOption | Partial<BeltOption>, value?: BeltOption[keyof BeltOption]): any {
+  public option(): Option;
+  public option(key: Partial<Option>): void;
+  public option<T extends keyof Option>(key: T): Option[T];
+  public option<T extends keyof Option>(key: T, value: Option[T]): void;
+  public option(key?: keyof Option | Partial<Option>, value?: Option[keyof Option]): any {
     if (key === undefined && value === undefined) {
-      return {
-        delay: this.delay,
-        duration: this.duration,
-        loop: this.loop,
-        reverse: this.reverse,
-        round: this.round,
-        easing: this.easing,
-      };
+      return this.optionor.all();
     }
     if (typeof key === 'string' && value === undefined) {
-      return this[key];
+      return this.optionor.get(key);
     }
-    const currOption = this.option() as { [key: string]: any };
-    const nextOption = { ...currOption };
     if (typeof key === 'string' && value !== undefined) {
-      nextOption[key] = value;
+      this.optionor.set(key, value);
     }
     if (typeof key === 'object' && key.constructor === Object) {
-      for (const name in key /* key is BeltOption */) {
-        if (key.hasOwnProperty(name)) {
-          nextOption[name] = key[name as keyof BeltOption];
-        }
-      }
-    }
-    for (const prop in currOption) {
-      if (currOption.hasOwnProperty(prop)) {
-        if (currOption[prop] !== nextOption[prop]) {
-          // @ts-ignore
-          this[prop] = nextOption[prop];
-          if (prop === 'duration') {
-            this.pastTime = this.duration * (this.pastTime / currOption.duration);
-            this.startTime = this.timestamp - this.pastTime;
-          }
-          if (prop === 'reverse') {
-            this.pastTime = this.duration * (1 - this.pastTime / this.duration);
-            this.startTime = this.timestamp - this.pastTime;
-            this.blend = blender(this.easing, this.reverse);
-          }
-          if (prop === 'easing') {
-            this.blend = blender(this.easing, this.reverse);
-          }
-        }
-      }
+      this.optionor.merge(key);
     }
   }
 
@@ -112,12 +62,13 @@ class Belt {
       }
       this.timestamp = timestamp;
       this.pastTime = timestamp - this.startTime;
-      const progress = this.pastTime / this.duration;
-      if (this.pastTime >= this.duration) {
+      const { duration, loop, round } = this.optionor.all();
+      const progress = this.pastTime / duration;
+      if (this.pastTime >= duration) {
         this.emitter.emit('update', this.blend(1, this.turn));
-        if (this.loop || (this.round && !this.turn)) {
+        if (loop || (round && !this.turn)) {
           this.startTime = timestamp;
-          if (this.round) {
+          if (round) {
             this.turn = !this.turn;
           }
         } else {
@@ -135,7 +86,7 @@ class Belt {
     return this;
   }
 
-  public on(eventName: string | BeltListener, listener: (...args: any[]) => void, context?: any) {
+  public on(eventName: string | ListenerMap, listener: (...args: any[]) => void, context?: any) {
     if (typeof eventName === 'object' && eventName.constructor === Object) {
       for (const key in eventName /* is BeltListener */) {
         if (eventName.hasOwnProperty(key)) {
@@ -149,7 +100,7 @@ class Belt {
     return this;
   }
 
-  public off(eventName: string | BeltListener, listener: (...args: any[]) => void, context?: any) {
+  public off(eventName: string | ListenerMap, listener: (...args: any[]) => void, context?: any) {
     if (typeof eventName === 'object' && eventName.constructor === Object) {
       for (const key in eventName /* is BeltListener */) {
         if (eventName.hasOwnProperty(key)) {
@@ -162,7 +113,22 @@ class Belt {
     }
     return this;
   }
+
+  private onUpdateOption(changedOption: Partial<Option>, prevOption: Option, nextOption: Option) {
+    if (changedOption.duration) {
+      this.pastTime = nextOption.duration * (this.pastTime / prevOption.duration);
+      this.startTime = this.timestamp - this.pastTime;
+    }
+    if (changedOption.reverse) {
+      this.pastTime = nextOption.duration * (1 - this.pastTime / nextOption.duration);
+      this.startTime = this.timestamp - this.pastTime;
+      this.blend = blender(nextOption.easing, nextOption.reverse);
+    }
+    if (changedOption.easing) {
+      this.blend = blender(nextOption.easing, nextOption.reverse);
+    }
+  }
 }
 
 export default Belt;
-export { BeltOption, BeltListener, BeltEasingFn };
+export { Option as BeltOption, ListenerMap as BeltListener, EasingFn as BeltEasingFn };
