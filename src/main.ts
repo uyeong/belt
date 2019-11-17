@@ -115,16 +115,16 @@ class Belt {
   }
 
   private onUpdateOption(changedOption: Partial<Option>, prevOption: Option, nextOption: Option) {
-    if (changedOption.duration) {
+    if (changedOption.hasOwnProperty('duration')) {
       this.pastTime = nextOption.duration * (this.pastTime / prevOption.duration);
       this.startTime = this.timestamp - this.pastTime;
     }
-    if (changedOption.reverse) {
+    if (changedOption.hasOwnProperty('reverse')) {
       this.pastTime = nextOption.duration * (1 - this.pastTime / nextOption.duration);
       this.startTime = this.timestamp - this.pastTime;
       this.blend = blender(nextOption.easing, nextOption.reverse);
     }
-    if (changedOption.easing) {
+    if (changedOption.hasOwnProperty('easing')) {
       this.blend = blender(nextOption.easing, nextOption.reverse);
     }
   }
