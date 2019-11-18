@@ -152,7 +152,7 @@ class Belt {
       this.startTime = this.timestamp - this.pastTime;
     }
     if (changedOption.hasOwnProperty('reverse')) {
-      this.pastTime = nextOption.duration * (1 - this.pastTime / nextOption.duration);
+      this.pastTime = this.pastTime > 0 ? nextOption.duration * (1 - this.pastTime / nextOption.duration) : 0;
       this.startTime = this.timestamp - this.pastTime;
       this.blend = blender(nextOption.easing, nextOption.reverse);
     }
