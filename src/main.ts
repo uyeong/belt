@@ -58,7 +58,7 @@ class Belt {
   }
 
   public start() {
-    if (this.optionor.get('duration') === 0 || this.rafId > 0) {
+    if (this.optionor.get('duration') === 0 || !this.paused) {
       return;
     }
     this.startTime = 0;
@@ -97,7 +97,7 @@ class Belt {
   }
 
   public pause() {
-    if (this.rafId === 0) {
+    if (this.paused) {
       return;
     }
     window.cancelAnimationFrame(this.rafId);
@@ -107,7 +107,7 @@ class Belt {
   }
 
   public stop() {
-    if (this.rafId === 0 && this.pastTime === 0) {
+    if (this.paused && this.pastTime === 0) {
       return;
     }
     window.cancelAnimationFrame(this.rafId);
