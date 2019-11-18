@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import Optionor, { Option, EasingFn } from './optionor';
+import Optionor, { EasingFn, Option } from './optionor';
 
 interface ListenerMap {
   [eventName: string]: (...args: any[]) => void;
@@ -36,10 +36,6 @@ class Belt {
     this.wait = delay;
   }
 
-  public isStarted() {
-    return this.rafId > 0;
-  }
-
   public isPaused() {
     return this.paused;
   }
@@ -64,7 +60,7 @@ class Belt {
   }
 
   public start() {
-    if (this.optionor.get('duration') === 0 || this.isStarted()) {
+    if (this.optionor.get('duration') === 0 || this.rafId > 0) {
       return;
     }
     this.startTime = 0;
@@ -74,12 +70,17 @@ class Belt {
       }
       this.timestamp = timestamp;
       this.pastTime = timestamp - this.startTime;
-      if (this.wait > 0 && this.pastTime > this.wait) {
-        this.startTime = 0;
-        this.pastTime = 0;
-        this.wait = 0;
-      }
-      if (this.wait <= 0) {
+      if (this.wait > 0) {
+        if (this.pastTime <= this.wait) {
+          const progress = this.pastTime / this.wait;
+          this.emitter.emit('wait', progress);
+        } else {
+          this.startTime = 0;
+          this.pastTime = 0;
+          this.wait = 0;
+          this.emitter.emit('wait', 1);
+        }
+      } else {
         if (this.paused) {
           this.emitter.emit('start');
         }
@@ -98,6 +99,7 @@ class Belt {
             this.rafId = 0;
             this.paused = true;
             this.turn = false;
+            this.wait = this.optionor.get('delay');
             this.emitter.emit('done');
             return;
           }
@@ -112,7 +114,7 @@ class Belt {
   }
 
   public pause() {
-    if (!this.isStarted()) {
+    if (this.rafId === 0) {
       return;
     }
     window.cancelAnimationFrame(this.rafId);
@@ -122,13 +124,15 @@ class Belt {
   }
 
   public stop() {
-    if (!this.isStarted() && !this.isPaused()) {
+    if (this.rafId === 0 && this.pastTime === 0) {
       return;
     }
     window.cancelAnimationFrame(this.rafId);
     this.pastTime = 0;
     this.rafId = 0;
     this.paused = true;
+    this.turn = false;
+    this.wait = this.optionor.get('delay');
     this.emitter.emit('stop');
   }
 
