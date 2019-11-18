@@ -21,7 +21,6 @@ class Belt {
   private optionor: Optionor;
   private paused: boolean = true;
   private blend: (n: number, t: boolean) => number;
-  private wait: number = 0;
   private turn: boolean = false;
   private timestamp: number = 0;
   private startTime: number = 0;
@@ -31,9 +30,8 @@ class Belt {
   constructor(option: Partial<Option> = {}) {
     this.optionor = new Optionor(option);
     this.optionor.listen(this.onUpdateOption, this);
-    const { delay, easing, reverse } = this.optionor.all();
+    const { easing, reverse } = this.optionor.all();
     this.blend = blender(easing, reverse);
-    this.wait = delay;
   }
 
   public isPaused() {
@@ -70,46 +68,31 @@ class Belt {
       }
       this.timestamp = timestamp;
       this.pastTime = timestamp - this.startTime;
-      if (this.wait > 0) {
-        if (this.pastTime <= this.wait) {
-          const progress = this.pastTime / this.wait;
-          this.emitter.emit('wait', progress);
-        } else {
-          this.startTime = 0;
-          this.pastTime = 0;
-          this.wait = 0;
-          this.emitter.emit('wait', 1);
-        }
-      } else {
-        if (this.paused) {
-          this.emitter.emit('start');
-        }
-        this.paused = false;
-        const { duration, loop, round } = this.optionor.all();
-        const progress = this.pastTime / duration;
-        if (this.pastTime >= duration) {
-          this.emitter.emit('update', this.blend(1, this.turn));
-          if (loop || (round && !this.turn)) {
-            this.startTime = timestamp;
-            if (round) {
-              this.turn = !this.turn;
-            }
-          } else {
-            this.pastTime = 0;
-            this.rafId = 0;
-            this.paused = true;
-            this.turn = false;
-            this.wait = this.optionor.get('delay');
-            this.emitter.emit('done');
-            return;
+      const { duration, loop, round } = this.optionor.all();
+      const progress = this.pastTime / duration;
+      if (this.pastTime >= duration) {
+        this.emitter.emit('update', this.blend(1, this.turn));
+        if (loop || (round && !this.turn)) {
+          this.startTime = timestamp;
+          if (round) {
+            this.turn = !this.turn;
           }
         } else {
-          this.emitter.emit('update', this.blend(progress, this.turn));
+          this.pastTime = 0;
+          this.rafId = 0;
+          this.paused = true;
+          this.turn = false;
+          this.emitter.emit('done');
+          return;
         }
+      } else {
+        this.emitter.emit('update', this.blend(progress, this.turn));
       }
       this.rafId = root.requestAnimationFrame(stepping);
     };
     root.requestAnimationFrame(stepping);
+    this.paused = false;
+    this.emitter.emit('start');
     return this;
   }
 
@@ -132,7 +115,6 @@ class Belt {
     this.rafId = 0;
     this.paused = true;
     this.turn = false;
-    this.wait = this.optionor.get('delay');
     this.emitter.emit('stop');
   }
 
@@ -165,9 +147,6 @@ class Belt {
   }
 
   private onUpdateOption(changedOption: Partial<Option>, prevOption: Option, nextOption: Option) {
-    if (changedOption.hasOwnProperty('delay') && this.paused) {
-      this.wait = nextOption.delay === 0 ? 0.1 : nextOption.delay;
-    }
     if (changedOption.hasOwnProperty('duration')) {
       this.pastTime = nextOption.duration * (this.pastTime / prevOption.duration);
       this.startTime = this.timestamp - this.pastTime;

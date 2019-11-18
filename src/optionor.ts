@@ -1,7 +1,6 @@
 import EventEmitter from 'eventemitter3';
 
 interface Option {
-  delay: number;
   duration: number;
   loop: boolean;
   reverse: boolean;
@@ -19,7 +18,6 @@ function stringify(object: {}) {
 
 class Optionor {
   private emitter: EventEmitter = new EventEmitter();
-  private delay: number;
   private duration: number;
   private loop: boolean;
   private reverse: boolean;
@@ -27,7 +25,6 @@ class Optionor {
   private easing: EasingFn;
 
   constructor(option: Partial<Option> = {}) {
-    this.delay = option.delay ?? 0;
     this.duration = option.duration ?? 0;
     this.loop = option.loop ?? false;
     this.reverse = option.reverse ?? false;
@@ -41,7 +38,6 @@ class Optionor {
 
   public all(): Option {
     return {
-      delay: this.delay,
       duration: this.duration,
       loop: this.loop,
       reverse: this.reverse,
