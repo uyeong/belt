@@ -5,15 +5,6 @@ interface Option {
   loop: boolean;
   reverse: boolean;
   round: boolean;
-  easing: EasingFn;
-}
-
-type EasingFn = (n: number) => number;
-
-function stringify(object: {}) {
-  return JSON.stringify(object, (_, value) => {
-    return typeof value === 'function' ? value.toString() : value;
-  });
 }
 
 class Optionor {
@@ -22,14 +13,12 @@ class Optionor {
   private loop: boolean;
   private reverse: boolean;
   private round: boolean;
-  private easing: EasingFn;
 
   constructor(option: Partial<Option> = {}) {
     this.duration = option.duration ?? 0;
     this.loop = option.loop ?? false;
     this.reverse = option.reverse ?? false;
     this.round = option.round ?? false;
-    this.easing = option.easing ?? ((n: number) => n);
   }
 
   public listen(listener: (changedOption: Partial<Option>, prevOption: Option, nextOption: Option) => void, context?: any) {
@@ -42,7 +31,6 @@ class Optionor {
       loop: this.loop,
       reverse: this.reverse,
       round: this.round,
-      easing: this.easing,
     };
   }
 
@@ -68,7 +56,7 @@ class Optionor {
   }
 
   public merge(values: Partial<Option>) {
-    if (stringify(values) === '{}') {
+    if (JSON.stringify(values) === '{}') {
       return;
     }
     const currOption = this.all();
@@ -81,11 +69,11 @@ class Optionor {
         this[key] = changedOption[key] = nextOption[key];
       }
     }
-    if (stringify(changedOption) !== '{}') {
+    if (JSON.stringify(changedOption) !== '{}') {
       this.emitter.emit('update', changedOption, currOption, nextOption);
     }
   }
 }
 
 export default Optionor;
-export { Option, EasingFn };
+export { Option };

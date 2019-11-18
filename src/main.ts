@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import Optionor, { EasingFn, Option } from './optionor';
+import Optionor, { Option } from './optionor';
 
 interface ListenerMap {
   [eventName: string]: (...args: any[]) => void;
@@ -7,12 +7,12 @@ interface ListenerMap {
 
 const root = (typeof window === 'undefined' ? global : window) as Window;
 
-function blender(easing: EasingFn, reverse: boolean) {
+function blender(reverse: boolean) {
   return (progress: number, turn: boolean) => {
     // prettier-ignore
     return turn ?
-      reverse ? easing(progress) : 1 - easing(progress) :
-      reverse ? 1 - easing(progress) : easing(progress);
+      reverse ? progress : 1 - progress :
+      reverse ? 1 - progress : progress;
   };
 }
 
@@ -30,8 +30,7 @@ class Belt {
   constructor(option: Partial<Option> = {}) {
     this.optionor = new Optionor(option);
     this.optionor.listen(this.onUpdateOption, this);
-    const { easing, reverse } = this.optionor.all();
-    this.blend = blender(easing, reverse);
+    this.blend = blender(this.optionor.get('reverse'));
   }
 
   public isPaused() {
@@ -154,13 +153,10 @@ class Belt {
     if (changedOption.hasOwnProperty('reverse')) {
       this.pastTime = this.pastTime > 0 ? nextOption.duration * (1 - this.pastTime / nextOption.duration) : 0;
       this.startTime = this.timestamp - this.pastTime;
-      this.blend = blender(nextOption.easing, nextOption.reverse);
-    }
-    if (changedOption.hasOwnProperty('easing')) {
-      this.blend = blender(nextOption.easing, nextOption.reverse);
+      this.blend = blender(nextOption.reverse);
     }
   }
 }
 
 export default Belt;
-export { Option as BeltOption, ListenerMap as BeltListener, EasingFn as BeltEasingFn };
+export { Option as BeltOption, ListenerMap as BeltListener };
