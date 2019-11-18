@@ -122,7 +122,7 @@ class Belt {
   }
 
   public stop() {
-    if (!this.isStarted()) {
+    if (!this.isStarted() && !this.isPaused()) {
       return;
     }
     window.cancelAnimationFrame(this.rafId);
