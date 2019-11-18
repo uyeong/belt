@@ -20,6 +20,8 @@ class Belt {
   private emitter = new EventEmitter();
   private optionor: Optionor;
   private blend: (n: number, t: boolean) => number;
+  private paused: boolean = true;
+  private wait: number = 0;
   private turn: boolean = false;
   private timestamp: number = 0;
   private startTime: number = 0;
@@ -32,6 +34,11 @@ class Belt {
     const easing = this.optionor.get('easing');
     const reverse = this.optionor.get('reverse');
     this.blend = blender(easing, reverse);
+    this.wait = this.optionor.get('delay');
+  }
+
+  public isPaused() {
+    return this.paused;
   }
 
   public option(): Option;
@@ -62,23 +69,32 @@ class Belt {
       }
       this.timestamp = timestamp;
       this.pastTime = timestamp - this.startTime;
-      const { duration, loop, round } = this.optionor.all();
-      const progress = this.pastTime / duration;
-      if (this.pastTime >= duration) {
-        this.emitter.emit('update', this.blend(1, this.turn));
-        if (loop || (round && !this.turn)) {
-          this.startTime = timestamp;
-          if (round) {
-            this.turn = !this.turn;
+      if (this.wait > 0 && this.pastTime > this.wait) {
+        this.startTime = 0;
+        this.pastTime = 0;
+        this.wait = 0;
+      }
+      if (this.wait === 0) {
+        this.paused = false;
+        const { duration, loop, round } = this.optionor.all();
+        const progress = this.pastTime / duration;
+        if (this.pastTime >= duration) {
+          this.emitter.emit('update', this.blend(1, this.turn));
+          if (loop || (round && !this.turn)) {
+            this.startTime = timestamp;
+            if (round) {
+              this.turn = !this.turn;
+            }
+          } else {
+            this.pastTime = 0;
+            this.rafId = 0;
+            this.paused = true;
+            this.turn = false;
+            return;
           }
         } else {
-          this.pastTime = 0;
-          this.rafId = 0;
-          this.turn = false;
-          return;
+          this.emitter.emit('update', this.blend(progress, this.turn));
         }
-      } else {
-        this.emitter.emit('update', this.blend(progress, this.turn));
       }
       this.rafId = root.requestAnimationFrame(stepping);
     };
@@ -115,6 +131,9 @@ class Belt {
   }
 
   private onUpdateOption(changedOption: Partial<Option>, prevOption: Option, nextOption: Option) {
+    if (changedOption.hasOwnProperty('delay') && this.paused) {
+      this.wait = nextOption.delay;
+    }
     if (changedOption.hasOwnProperty('duration')) {
       this.pastTime = nextOption.duration * (this.pastTime / prevOption.duration);
       this.startTime = this.timestamp - this.pastTime;
