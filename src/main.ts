@@ -89,7 +89,7 @@ class Belt {
       }
       this.rafId = root.requestAnimationFrame(stepping);
     };
-    root.requestAnimationFrame(stepping);
+    this.rafId = root.requestAnimationFrame(stepping);
     this.paused = false;
     this.emitter.emit('start');
     return this;
