@@ -19,8 +19,8 @@ function blender(easing: EasingFn, reverse: boolean) {
 class Belt {
   private emitter = new EventEmitter();
   private optionor: Optionor;
-  private blend: (n: number, t: boolean) => number;
   private paused: boolean = true;
+  private blend: (n: number, t: boolean) => number;
   private wait: number = 0;
   private turn: boolean = false;
   private timestamp: number = 0;
@@ -31,10 +31,13 @@ class Belt {
   constructor(option: Partial<Option> = {}) {
     this.optionor = new Optionor(option);
     this.optionor.listen(this.onUpdateOption, this);
-    const easing = this.optionor.get('easing');
-    const reverse = this.optionor.get('reverse');
+    const { delay, easing, reverse } = this.optionor.all();
     this.blend = blender(easing, reverse);
-    this.wait = this.optionor.get('delay');
+    this.wait = delay;
+  }
+
+  public isStarted() {
+    return this.rafId > 0;
   }
 
   public isPaused() {
@@ -60,8 +63,10 @@ class Belt {
     }
   }
 
-  public run() {
-    this.pastTime = 0;
+  public start() {
+    if (this.optionor.get('duration') === 0 || this.isStarted()) {
+      return;
+    }
     this.startTime = 0;
     const stepping = (timestamp: number) => {
       if (!this.startTime) {
@@ -74,7 +79,10 @@ class Belt {
         this.pastTime = 0;
         this.wait = 0;
       }
-      if (this.wait === 0) {
+      if (this.wait <= 0) {
+        if (this.paused) {
+          this.emitter.emit('start');
+        }
         this.paused = false;
         const { duration, loop, round } = this.optionor.all();
         const progress = this.pastTime / duration;
@@ -90,6 +98,7 @@ class Belt {
             this.rafId = 0;
             this.paused = true;
             this.turn = false;
+            this.emitter.emit('done');
             return;
           }
         } else {
@@ -100,6 +109,27 @@ class Belt {
     };
     root.requestAnimationFrame(stepping);
     return this;
+  }
+
+  public pause() {
+    if (!this.isStarted()) {
+      return;
+    }
+    window.cancelAnimationFrame(this.rafId);
+    this.rafId = 0;
+    this.paused = true;
+    this.emitter.emit('pause');
+  }
+
+  public stop() {
+    if (!this.isStarted()) {
+      return;
+    }
+    window.cancelAnimationFrame(this.rafId);
+    this.pastTime = 0;
+    this.rafId = 0;
+    this.paused = true;
+    this.emitter.emit('stop');
   }
 
   public on(eventName: string | ListenerMap, listener: (...args: any[]) => void, context?: any) {
@@ -132,7 +162,7 @@ class Belt {
 
   private onUpdateOption(changedOption: Partial<Option>, prevOption: Option, nextOption: Option) {
     if (changedOption.hasOwnProperty('delay') && this.paused) {
-      this.wait = nextOption.delay;
+      this.wait = nextOption.delay === 0 ? 0.1 : nextOption.delay;
     }
     if (changedOption.hasOwnProperty('duration')) {
       this.pastTime = nextOption.duration * (this.pastTime / prevOption.duration);
