@@ -1,7 +1,16 @@
 import EventEmitter from 'eventemitter3';
-import Optionor, { Option } from './optionor';
+import PropM from './propm';
+import Gear from './gear';
+import Gears from './gears';
 
-interface ListenerMap {
+interface BeltOption {
+  duration: number;
+  loop: boolean;
+  reverse: boolean;
+  round: boolean;
+}
+
+interface BeltListener {
   [eventName: string]: (...args: any[]) => void;
 }
 
@@ -16,48 +25,61 @@ function blender(reverse: boolean) {
   };
 }
 
+const defaultOption = {
+  duration: 0,
+  loop: false,
+  reverse: false,
+  round: false,
+};
+
 class Belt {
   private emitter = new EventEmitter();
-  private optionor: Optionor;
+  private props: PropM<BeltOption>;
+  private gears: Gears;
+  // state variable(s).
   private paused: boolean = true;
-  private blend: (n: number, t: boolean) => number;
+  // switch variable(s).
   private turn: boolean = false;
+  // raf's variable(s).
   private timestamp: number = 0;
   private startTime: number = 0;
   private pastTime: number = 0;
   private rafId: number = 0;
+  // blending function.
+  private blend: (n: number, t: boolean) => number;
 
-  constructor(option: Partial<Option> = {}) {
-    this.optionor = new Optionor(option);
-    this.optionor.listen(this.onUpdateOption, this);
-    this.blend = blender(this.optionor.get('reverse'));
+  constructor(option: Partial<BeltOption> = {}, gears: Gear[] = []) {
+    this.props = new PropM<BeltOption>(option, defaultOption);
+    this.props.listen(this.onUpdateOption, this);
+    this.gears = new Gears(gears);
+    this.blend = blender(this.props.get('reverse'));
   }
 
   public isPaused() {
     return this.paused;
   }
 
-  public option(): Option;
-  public option(key: Partial<Option>): void;
-  public option<T extends keyof Option>(key: T): Option[T];
-  public option<T extends keyof Option>(key: T, value: Option[T]): void;
-  public option(key?: keyof Option | Partial<Option>, value?: Option[keyof Option]): any {
+  public option(): BeltOption;
+  public option(key: Partial<BeltOption>): void;
+  public option<T extends keyof BeltOption>(key: T): BeltOption[T];
+  public option<T extends keyof BeltOption>(key: T, value: BeltOption[T]): void;
+  public option(key?: keyof BeltOption | Partial<BeltOption>, value?: BeltOption[keyof BeltOption]): any {
     if (key === undefined && value === undefined) {
-      return this.optionor.all();
+      return this.props.all();
     }
     if (typeof key === 'string' && value === undefined) {
-      return this.optionor.get(key);
+      return this.props.get(key);
     }
     if (typeof key === 'string' && value !== undefined) {
-      this.optionor.set(key, value);
+      this.props.set(key, value);
     }
     if (typeof key === 'object' && key.constructor === Object) {
-      this.optionor.merge(key);
+      this.props.merge(key);
     }
   }
 
   public start() {
-    if (this.optionor.get('duration') === 0 || !this.paused) {
+    if (this.props.get('duration') === 0 || !this.paused) {
       return;
     }
     this.startTime = 0;
@@ -67,7 +89,7 @@ class Belt {
       }
       this.timestamp = timestamp;
       this.pastTime = timestamp - this.startTime;
-      const { duration, loop, round } = this.optionor.all();
+      const { duration, loop, round } = this.props.all();
       const progress = this.pastTime / duration;
       if (this.pastTime >= duration) {
         this.emitter.emit('update', this.blend(1, this.turn));
@@ -116,7 +138,7 @@ class Belt {
     this.emitter.emit('stop');
   }
 
-  public on(eventName: string | ListenerMap, listener: (...args: any[]) => void, context?: any) {
+  public on(eventName: string | BeltListener, listener: (...args: any[]) => void, context?: any) {
     if (typeof eventName === 'object' && eventName.constructor === Object) {
       for (const key in eventName /* is BeltListener */) {
         if (eventName.hasOwnProperty(key)) {
@@ -130,7 +152,7 @@ class Belt {
     return this;
   }
 
-  public off(eventName: string | ListenerMap, listener: (...args: any[]) => void, context?: any) {
+  public off(eventName: string | BeltListener, listener: (...args: any[]) => void, context?: any) {
     if (typeof eventName === 'object' && eventName.constructor === Object) {
       for (const key in eventName /* is BeltListener */) {
         if (eventName.hasOwnProperty(key)) {
@@ -144,7 +166,7 @@ class Belt {
     return this;
   }
 
-  private onUpdateOption(changedOption: Partial<Option>, prevOption: Option, nextOption: Option) {
+  private onUpdateOption(changedOption: Partial<BeltOption>, prevOption: BeltOption, nextOption: BeltOption) {
     if (changedOption.hasOwnProperty('duration')) {
       this.pastTime = nextOption.duration * (this.pastTime / prevOption.duration);
       this.startTime = this.timestamp - this.pastTime;
@@ -158,4 +180,4 @@ class Belt {
 }
 
 export default Belt;
-export { Option as BeltOption, ListenerMap as BeltListener };
+export { BeltOption, BeltListener };
